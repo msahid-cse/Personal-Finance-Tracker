@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en" class="">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Personal Expense & Income Tracker</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+      // This configures Tailwind to use the 'dark' class for theme switching
+      tailwind.config = {
+        darkMode: 'class',
+      }
+    </script>
+    <script>
+        // Set theme on initial load
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+          document.documentElement.classList.add('dark')
+        } else {
+          document.documentElement.classList.remove('dark')
+        }
+    </script>
+    <style>
+        /* Custom styles */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Simple animation for list items */
+        .transaction-item, .modal-content {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        /* Styling for the insights box */
+        #insights-box {
+            white-space: pre-wrap; /* Allows line breaks and spacing from the API to be rendered */
+        }
+        /* Modal styles */
+        .modal-overlay {
+            transition: opacity 0.3s ease;
+        }
+        .modal-content {
+             transition: transform 0.3s ease;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 transition-colors duration-300">
+
+    <div class="container mx-auto p-4 sm:p-6 lg:p-8 max-w-5xl">
+        
+        <header class="text-center mb-8 relative">
+            <h1 class="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white">Personal Finance Tracker</h1>
+            <p class="text-gray-600 dark:text-gray-400 mt-2">Track your income and expenses with ease, and get AI-powered insights.</p>
+            <button id="theme-toggle" class="absolute top-0 right-0 p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 dark:focus:ring-offset-gray-900 focus:ring-blue-500">
+                <svg id="theme-toggle-dark-icon" class="hidden h-6 w-6" fill="currentColor" viewBox="0 0 20 20"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
+                <svg id="theme-toggle-light-icon" class="hidden h-6 w-6" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 14.464A1 1 0 106.465 13.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zM5 11a1 1 0 100-2H3a1 1 0 100 2h2zM4.293 4.293A1 1 0 015.707 5.707L5 6.414a1 1 0 11-1.414-1.414l.707-.707z" fill-rule="evenodd" clip-rule="evenodd"></path></svg>
+            </button>
+        </header>
+
+        <main class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+            <!-- Left Column: Controls & Forms -->
+            <div class="lg:col-span-1 space-y-8">
+                
+                <!-- Balance Summary -->
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">
+                    <h2 class="text-xl font-bold mb-4 text-gray-800 dark:text-gray-200">Your Balance</h2>
+                    <div id="current-balance" class="text-4xl font-bold text-blue-600 dark:text-blue-400">$0.00</div>
+                </div>
+                
+                <!-- Forms Container -->
+                <div class="space-y-8">
+                    <!-- Set Initial Balance Form -->
+                    <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">
+                        <h3 class="text-lg font-semibold mb-3 text-gray-700 dark:text-gray-300">Set Your Balance</h3>
+                        <form id="balance-form">
+                            <label for="initial-balance" class="sr-only">Initial Balance</label>
+                            <input type="number" id="initial-balance" placeholder="Enter your total balance" class="w-full p-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition text-gray-800 dark:text-gray-200" step="0.01" required>
+                            <button type="submit" class="w-full mt-3 bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors">Set Balance</button>
+                        </form>
+                    </div>
+
+                    <!-- Add Income Form -->
+                    <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">
+                        <h3 class="text-lg font-semibold mb-3 text-gray-700 dark:text-gray-300">Add New Income</h3>
+                        <form id="income-form" class="space-y-4">
+                            <div>
+                                <label for="income-text" class="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Description</label>
+                                <input type="text" id="income-text" placeholder="e.g., Salary, Freelance" class="w-full p-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition text-gray-800 dark:text-gray-200" required>
+                            </div>
+                            <div>
+                                <label for="income-amount" class="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Amount</label>
+                                <input type="number" id="income-amount" placeholder="Enter amount" class="w-full p-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition text-gray-800 dark:text-gray-200" step="0.01" required>
+                            </div>
+                            <button type="submit" class="w-full bg-green-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-700 transition-colors">Add Income</button>
+                        </form>
+                    </div>
+
+                    <!-- Add Expense Form -->
+                    <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">
+                        <h3 class="text-lg font-semibold mb-3 text-gray-700 dark:text-gray-300">Add New Expense</h3>
+                        <form id="expense-form" class="space-y-4">
+                            <div>
+                                <label for="expense-text" class="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Description</label>
+                                <input type="text" id="expense-text" placeholder="e.g., Coffee, Groceries" class="w-full p-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition text-gray-800 dark:text-gray-200" required>
+                            </div>
+                            <div>
+                                <label for="expense-amount" class="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Amount</label>
+                                <input type="number" id="expense-amount" placeholder="Enter amount" class="w-full p-3 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 transition text-gray-800 dark:text-gray-200" step="0.01" required>
+                            </div>
+                            <button type="submit" class="w-full bg-red-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-red-700 transition-colors">Add Expense</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Summary & History -->
+            <div class="lg:col-span-2 space-y-8">
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">
+                    <h2 class="text-xl font-bold mb-4 text-gray-800 dark:text-gray-200">Summary & History</h2>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                        <div class="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg"><h4 class="text-sm font-semibold text-blue-800 dark:text-blue-300">Initial Balance</h4><p id="summary-initial" class="text-2xl font-bold text-blue-900 dark:text-blue-400">$0.00</p></div>
+                        <div class="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg"><h4 class="text-sm font-semibold text-green-800 dark:text-green-300">Total Income</h4><p id="summary-income" class="text-2xl font-bold text-green-900 dark:text-green-400">$0.00</p></div>
+                        <div class="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg"><h4 class="text-sm font-semibold text-red-800 dark:text-red-300">Total Expenses</h4><p id="summary-expenses" class="text-2xl font-bold text-red-900 dark:text-red-400">$0.00</p></div>
+                    </div>
+                    <h3 class="text-lg font-semibold mb-3 text-gray-700 dark:text-gray-300">Transaction History</h3>
+                    <ul id="transaction-list" class="space-y-3">
+                         <li id="no-transactions" class="text-center text-gray-500 dark:text-gray-400 py-4">No transactions yet.</li>
+                    </ul>
+                </div>
+                
+                <!-- Data Actions & AI -->
+                <div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md space-y-4">
+                    <h3 class="text-lg font-semibold mb-2 text-gray-700 dark:text-gray-300">Actions & AI</h3>
+                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <button id="export-income-csv" class="w-full bg-gray-700 text-white font-bold py-3 px-4 rounded-lg hover:bg-gray-800 transition-colors flex items-center justify-center space-x-2"><span>Export Income</span></button>
+                        <button id="export-expenses-csv" class="w-full bg-gray-700 text-white font-bold py-3 px-4 rounded-lg hover:bg-gray-800 transition-colors flex items-center justify-center space-x-2"><span>Export Expenses</span></button>
+                    </div>
+                    <button id="get-insights" class="w-full bg-purple-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center space-x-2">
+                        <span>✨ Get Spending Insights</span>
+                    </button>
+                    <button id="get-challenge" class="w-full bg-orange-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-orange-600 transition-colors flex items-center justify-center space-x-2">
+                        <span>🎯 Suggest a Savings Challenge</span>
+                    </button>
+                     <button id="get-forecast" class="w-full bg-teal-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-teal-600 transition-colors flex items-center justify-center space-x-2">
+                        <span>🔮 Get Financial Forecast</span>
+                    </button>
+                    <div id="insights-section" class="pt-4 hidden">
+                         <h2 class="text-xl font-bold mb-4 text-gray-800 dark:text-gray-200">💡 AI Insights</h2>
+                         <div id="insights-box" class="p-4 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-500/30 rounded-lg text-gray-700 dark:text-gray-300 min-h-[100px]">Click an AI button to get started.</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Savings Challenge Modal -->
+    <div id="challenge-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 hidden">
+        <div class="modal-overlay fixed inset-0 bg-black bg-opacity-60" onclick="closeModal()"></div>
+        <div class="modal-content bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md mx-auto z-10 transform scale-95">
+            <div class="p-6 text-center">
+                <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center text-4xl">🎯</div>
+                <h3 id="challenge-title" class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Challenge Title</h3>
+                <p id="challenge-description" class="text-gray-600 dark:text-gray-400 mb-4">Challenge description goes here.</p>
+                <div class="bg-green-100 dark:bg-green-900/30 border border-green-200 dark:border-green-500/30 text-green-800 dark:text-green-300 font-bold py-2 px-4 rounded-lg inline-block">
+                    Potential Savings: <span id="challenge-savings">~$0</span>
+                </div>
+            </div>
+            <div class="bg-gray-50 dark:bg-gray-700/50 px-6 py-4 rounded-b-2xl text-right">
+                <button onclick="closeModal()" class="bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 font-bold py-2 px-6 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500 transition-colors">Close</button>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        // DOM Elements
+        const themeToggleBtn = document.getElementById('theme-toggle');
+        const themeToggleDarkIcon = document.getElementById('theme-toggle-dark-icon');
+        const themeToggleLightIcon = document.getElementById('theme-toggle-light-icon');
+        const balanceForm = document.getElementById('balance-form');
+        const initialBalanceInput = document.getElementById('initial-balance');
+        
+        const incomeForm = document.getElementById('income-form');
+        const incomeTextInput = document.getElementById('income-text');
+        const incomeAmountInput = document.getElementById('income-amount');
+
+        const expenseForm = document.getElementById('expense-form');
+        const expenseTextInput = document.getElementById('expense-text');
+        const expenseAmountInput = document.getElementById('expense-amount');
+        
+        const currentBalanceEl = document.getElementById('current-balance');
+        const summaryInitialEl = document.getElementById('summary-initial');
+        const summaryIncomeEl = document.getElementById('summary-income');
+        const summaryExpensesEl = document.getElementById('summary-expenses');
+        const transactionListEl = document.getElementById('transaction-list');
+        const noTransactionsMessage = document.getElementById('no-transactions');
+        
+        const exportIncomeCsvBtn = document.getElementById('export-income-csv');
+        const exportExpensesCsvBtn = document.getElementById('export-expenses-csv');
+        const getInsightsBtn = document.getElementById('get-insights');
+        const getChallengeBtn = document.getElementById('get-challenge');
+        const getForecastBtn = document.getElementById('get-forecast');
+        
+        const insightsSection = document.getElementById('insights-section');
+        const insightsBox = document.getElementById('insights-box');
+        
+        const challengeModal = document.getElementById('challenge-modal');
+        const challengeTitle = document.getElementById('challenge-title');
+        const challengeDescription = document.getElementById('challenge-description');
+        const challengeSavings = document.getElementById('challenge-savings');
+
+        // --- Theme Switcher ---
+        function updateThemeIcons(isDark) {
+            themeToggleDarkIcon.classList.toggle('hidden', isDark);
+            themeToggleLightIcon.classList.toggle('hidden', !isDark);
+        }
+
+        // Initial icon state
+        updateThemeIcons(document.documentElement.classList.contains('dark'));
+        
+        themeToggleBtn.addEventListener('click', () => {
+            // toggle theme
+            document.documentElement.classList.toggle('dark');
+            const isDark = document.documentElement.classList.contains('dark');
+            localStorage.theme = isDark ? 'dark' : 'light';
+            updateThemeIcons(isDark);
+        });
+
+        // --- Data Management ---
+        let appState = JSON.parse(localStorage.getItem('financeTrackerState')) || {
+            initialBalance: 0,
+            incomes: [],
+            expenses: []
+        };
+
+        function saveState() {
+            localStorage.setItem('financeTrackerState', JSON.stringify(appState));
+        }
+
+        // --- Core Functions ---
+        function updateUI() {
+            const { initialBalance, incomes, expenses } = appState;
+
+            const totalIncome = incomes.reduce((acc, item) => acc + item.amount, 0);
+            const totalExpenses = expenses.reduce((acc, item) => acc + item.amount, 0);
+            const currentBalance = initialBalance + totalIncome - totalExpenses;
+
+            currentBalanceEl.textContent = formatCurrency(currentBalance);
+            summaryInitialEl.textContent = formatCurrency(initialBalance);
+            summaryIncomeEl.textContent = formatCurrency(totalIncome);
+            summaryExpensesEl.textContent = formatCurrency(totalExpenses);
+            
+            // Correctly handle balance color for both themes
+            if (currentBalance < 0) {
+                currentBalanceEl.classList.remove('text-blue-600', 'dark:text-blue-400');
+                currentBalanceEl.classList.add('text-red-600', 'dark:text-red-400');
+            } else {
+                currentBalanceEl.classList.remove('text-red-600', 'dark:text-red-400');
+                currentBalanceEl.classList.add('text-blue-600', 'dark:text-blue-400');
+            }
+
+            transactionListEl.innerHTML = '';
+            const allTransactions = [
+                ...incomes.map(i => ({...i, type: 'income'})),
+                ...expenses.map(e => ({...e, type: 'expense'}))
+            ].sort((a, b) => new Date(b.id) - new Date(a.id)); // Sort by date/id
+
+            if (allTransactions.length === 0) {
+                 transactionListEl.appendChild(noTransactionsMessage);
+                 noTransactionsMessage.style.display = 'block';
+                 insightsSection.classList.add('hidden');
+            } else {
+                noTransactionsMessage.style.display = 'none';
+                allTransactions.forEach(addTransactionToDOM);
+                insightsSection.classList.remove('hidden');
+            }
+            
+            saveState();
+        }
+
+        function addTransactionToDOM(transaction) {
+            const isIncome = transaction.type === 'income';
+            const item = document.createElement('li');
+            item.classList.add('transaction-item', 'flex', 'justify-between', 'items-center', 'p-3', 'bg-gray-50', 'dark:bg-gray-700/50', 'rounded-lg', 'border', 'border-gray-200', 'dark:border-gray-700');
+            
+            const sign = isIncome ? '+' : '-';
+            const amountColor = isIncome ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
+            const deleteFunction = isIncome ? `deleteIncome(${transaction.id})` : `deleteExpense(${transaction.id})`;
+
+            item.innerHTML = `
+                <span class="font-medium">${transaction.text}</span>
+                <div class="flex items-center space-x-4">
+                    <span class="font-bold ${amountColor}">${sign}${formatCurrency(Math.abs(transaction.amount))}</span>
+                    <button onclick="${deleteFunction}" class="text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                    </button>
+                </div>
+            `;
+            transactionListEl.appendChild(item);
+        }
+        
+        function deleteIncome(id) {
+            appState.incomes = appState.incomes.filter(item => item.id !== id);
+            updateUI();
+        }
+
+        function deleteExpense(id) {
+            appState.expenses = appState.expenses.filter(item => item.id !== id);
+            updateUI();
+        }
+
+        function generateID() {
+            return Date.now(); // Using timestamp for unique and sortable IDs
+        }
+
+        function formatCurrency(number) {
+            return '$' + number.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,');
+        }
+        
+        // --- Modal Controls ---
+        function openModal() {
+            challengeModal.classList.remove('hidden');
+            setTimeout(() => {
+                challengeModal.querySelector('.modal-overlay').classList.remove('opacity-0');
+                challengeModal.querySelector('.modal-content').classList.remove('scale-95');
+            }, 10);
+        }
+
+        function closeModal() {
+            challengeModal.querySelector('.modal-overlay').classList.add('opacity-0');
+            challengeModal.querySelector('.modal-content').classList.add('scale-95');
+            setTimeout(() => {
+                challengeModal.classList.add('hidden');
+            }, 300);
+        }
+
+        // --- Gemini API Integrations ---
+        async function getSpendingInsights() {
+            if (appState.expenses.length === 0) {
+                insightsBox.textContent = "Add some expenses first to get insights.";
+                return;
+            }
+            insightsBox.textContent = "Analyzing your spending...";
+            getInsightsBtn.disabled = true;
+            getInsightsBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            const transactionList = appState.expenses.map(t => `- ${t.text}: ${formatCurrency(t.amount)}`).join('\n');
+            const prompt = `Based on the following list of expenses, provide a brief analysis of the spending habits. Identify the main spending categories, point out any potential areas for savings, and offer one or two actionable tips. Keep the tone friendly and encouraging.\n\nExpenses:\n${transactionList}`;
+            try {
+                const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
+                const apiKey = "";
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                if (!response.ok) throw new Error(`API request failed with status ${response.status}`);
+                const result = await response.json();
+                if (result.candidates?.[0]?.content?.parts?.[0]?.text) {
+                    insightsBox.textContent = result.candidates[0].content.parts[0].text;
+                } else {
+                    insightsBox.textContent = "Sorry, I couldn't generate insights at this time.";
+                }
+            } catch (error) {
+                console.error("Error fetching insights:", error);
+                insightsBox.textContent = "Sorry, there was an error getting insights.";
+            } finally {
+                getInsightsBtn.disabled = false;
+                getInsightsBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        }
+
+        async function getSavingsChallenge() {
+            if (appState.expenses.length < 3) {
+                challengeTitle.textContent = "Need More Data!";
+                challengeDescription.textContent = "Please add at least 3 expenses so I can create a personalized challenge for you.";
+                challengeSavings.textContent = "N/A";
+                openModal();
+                return;
+            }
+            challengeTitle.textContent = "Creating Your Challenge...";
+            challengeDescription.textContent = "The AI is thinking of a fun way for you to save money...";
+            challengeSavings.textContent = "...";
+            openModal();
+            getChallengeBtn.disabled = true;
+            getChallengeBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            const transactionList = appState.expenses.map(t => t.text).join(', ');
+            const prompt = `You are a friendly financial coach. Based on the user's recent spending habits indicated by these items: "${transactionList}", create a personalized, fun, and actionable weekly savings challenge. The goal is to help the user save a small, achievable amount of money by changing one habit. Respond with a JSON object.`;
+            try {
+                const payload = {
+                    contents: [{ role: "user", parts: [{ text: prompt }] }],
+                    generationConfig: {
+                        responseMimeType: "application/json",
+                        responseSchema: { type: "OBJECT", properties: { "challengeTitle": { "type": "STRING" }, "challengeDescription": { "type": "STRING" }, "potentialSavings": { "type": "STRING" } }, required: ["challengeTitle", "challengeDescription", "potentialSavings"] }
+                    }
+                };
+                const apiKey = "";
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                if (!response.ok) throw new Error(`API request failed with status ${response.status}`);
+                const result = await response.json();
+                if (result.candidates?.[0]?.content?.parts?.[0]?.text) {
+                    const challengeData = JSON.parse(result.candidates[0].content.parts[0].text);
+                    challengeTitle.textContent = challengeData.challengeTitle;
+                    challengeDescription.textContent = challengeData.challengeDescription;
+                    challengeSavings.textContent = challengeData.potentialSavings;
+                } else { throw new Error("AI response was empty or invalid."); }
+            } catch (error) {
+                console.error("Error fetching challenge:", error);
+                challengeTitle.textContent = "Error";
+                challengeDescription.textContent = "Sorry, there was an error creating your challenge.";
+            } finally {
+                getChallengeBtn.disabled = false;
+                getChallengeBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        }
+
+        async function getFinancialForecast() {
+            const { initialBalance, incomes, expenses } = appState;
+            const totalIncome = incomes.reduce((acc, item) => acc + item.amount, 0);
+            const totalExpenses = expenses.reduce((acc, item) => acc + item.amount, 0);
+            
+            if (totalIncome === 0 || totalExpenses === 0) {
+                insightsBox.textContent = "Please add at least one income and one expense entry to generate a forecast.";
+                return;
+            }
+
+            insightsBox.textContent = "Forecasting your financial future...";
+            getForecastBtn.disabled = true;
+            getForecastBtn.classList.add('opacity-50', 'cursor-not-allowed');
+
+            const currentBalance = initialBalance + totalIncome - totalExpenses;
+            const prompt = `
+                A user has a current balance of ${formatCurrency(currentBalance)}. 
+                Based on their recorded data, their total income has been ${formatCurrency(totalIncome)} and total expenses have been ${formatCurrency(totalExpenses)}.
+                Assuming a similar pattern for next month, provide a simple one-month financial forecast.
+                Include:
+                1. An estimated closing balance for next month.
+                2. One brief, encouraging piece of advice based on whether they are saving or overspending.
+                Keep the tone positive and straightforward.
+            `;
+            try {
+                const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
+                const apiKey = "";
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                if (!response.ok) throw new Error(`API request failed with status ${response.status}`);
+                const result = await response.json();
+                if (result.candidates?.[0]?.content?.parts?.[0]?.text) {
+                    insightsBox.textContent = result.candidates[0].content.parts[0].text;
+                } else {
+                    insightsBox.textContent = "Sorry, I couldn't generate a forecast at this time.";
+                }
+            } catch (error) {
+                console.error("Error fetching forecast:", error);
+                insightsBox.textContent = "Sorry, there was an error getting your financial forecast.";
+            } finally {
+                getForecastBtn.disabled = false;
+                getForecastBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        }
+        
+        function exportToCsv(data, filename) {
+            if (data.length === 0) {
+                alert(`No ${filename.split('.')[0]} to export.`);
+                return;
+            }
+            const headers = ['ID', 'Date', 'Description', 'Amount'];
+            const rows = data.map(tx => [tx.id, new Date(tx.id).toLocaleDateString(), `"${tx.text.replace(/"/g, '""')}"`, tx.amount.toFixed(2)]);
+            let csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + rows.map(e => e.join(",")).join("\n");
+            const link = document.createElement("a");
+            link.setAttribute("href", encodeURI(csvContent));
+            link.setAttribute("download", filename);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // --- Event Handlers ---
+        balanceForm.addEventListener('submit', (e) => { e.preventDefault(); const b = parseFloat(initialBalanceInput.value); if(isNaN(b)) return; appState.initialBalance = b; initialBalanceInput.value = ''; updateUI(); });
+        
+        incomeForm.addEventListener('submit', (e) => { e.preventDefault(); const t = incomeTextInput.value.trim(); const a = parseFloat(incomeAmountInput.value); if(t===''||isNaN(a)) return; appState.incomes.push({id:generateID(),text:t,amount:Math.abs(a)}); incomeTextInput.value=''; incomeAmountInput.value=''; updateUI(); });
+        
+        expenseForm.addEventListener('submit', (e) => { e.preventDefault(); const t = expenseTextInput.value.trim(); const a = parseFloat(expenseAmountInput.value); if(t===''||isNaN(a)) return; appState.expenses.push({id:generateID(),text:t,amount:Math.abs(a)}); expenseTextInput.value=''; expenseAmountInput.value=''; updateUI(); });
+        
+        exportIncomeCsvBtn.addEventListener('click', () => exportToCsv(appState.incomes, 'income.csv'));
+        exportExpensesCsvBtn.addEventListener('click', () => exportToCsv(appState.expenses, 'expenses.csv'));
+        
+        getInsightsBtn.addEventListener('click', getSpendingInsights);
+        getChallengeBtn.addEventListener('click', getSavingsChallenge);
+        getForecastBtn.addEventListener('click', getFinancialForecast);
+
+        // --- Initial Load ---
+        document.addEventListener('DOMContentLoaded', updateUI);
+        
+        window.deleteIncome = deleteIncome;
+        window.deleteExpense = deleteExpense;
+        window.closeModal = closeModal;
+
+    </script>
+</body>
+</html>
